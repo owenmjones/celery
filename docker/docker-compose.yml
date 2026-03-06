@@ -1,4 +1,17 @@
 services:
+  app:
+    build:
+      context: ../sandbox
+      dockerfile: ../sandbox/Dockerfile
+    depends_on:
+      - redis
+      - rabbit
+    env_file:
+      - ../sandbox/.env
+    volumes:
+      - ../sandbox:/app
+    command: ./manage.py runserver 0.0.0.0:8000
+
   celery:
     build:
       context: ..
@@ -7,6 +20,7 @@ services:
         CELERY_USER: developer
     image: celery/celery:dev
     environment:
+      BROKER_URL: amqp://guest@rabbit:5672
       TEST_BROKER: pyamqp://rabbit:5672
       TEST_BACKEND: redis://redis
       PYTHONUNBUFFERED: 1
@@ -18,11 +32,13 @@ services:
     tty: true
     volumes:
       - ../.:/home/developer/celery
+    working_dir: /home/developer/celery/sandbox
     depends_on:
       - rabbit
       - redis
-      - dynamodb
-      - azurite
+#      - dynamodb
+#      - azurite
+    command: celery -A myproject worker -l info --pool=threads --concurrency=1 --prefetch-multiplier=3
 
   rabbit:
     image: rabbitmq:management
@@ -30,19 +46,19 @@ services:
   redis:
     image: redis:latest
 
-  dynamodb:
-    image: amazon/dynamodb-local:latest
-
-  azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:latest
-
-  docs:
-    image: celery/docs
-    build:
-      context: ..
-      dockerfile: docker/docs/Dockerfile
-    volumes:
-        - ../docs:/docs:z
-    ports:
-      - "7001:7000"
-    command: /start-docs
+#  dynamodb:
+#    image: amazon/dynamodb-local:latest
+#
+#  azurite:
+#    image: mcr.microsoft.com/azure-storage/azurite:latest
+#
+#  docs:
+#    image: celery/docs
+#    build:
+#      context: ..
+#      dockerfile: docker/docs/Dockerfile
+#    volumes:
+#        - ../docs:/docs:z
+#    ports:
+#      - "7001:7000"
+#    command: /start-docs
